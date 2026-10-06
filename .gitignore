@@ -1,2 +1,17 @@
+# Variables de entorno (credenciales)
 .env
 .env.*
+
+# Entregable comprimido (lleva los .env dentro)
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editor y sistema
+.vscode/
+.idea/
+.DS_Store
