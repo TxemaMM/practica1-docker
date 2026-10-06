@@ -1,0 +1,24 @@
+name: ranking-dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    env_file: .env.dev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  pgdata:
+
+networks:
+  backend:
+    internal: true
