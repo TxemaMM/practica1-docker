@@ -2,6 +2,8 @@ import os
 from contextlib import contextmanager
 from functools import wraps
 
+import json
+import redis
 import time
 import psycopg2
 import psycopg2.errors
@@ -20,6 +22,20 @@ DB_CONFIG = {
     "connect_timeout": 2,
 }
 
+CACHE_ENABLED = os.environ.get("CACHE_ENABLED", "false").lower() == "true"
+CACHE_TTL = int(os.environ.get("CACHE_TTL", "30"))
+TOP_KEY = "ranking:top5"
+
+cache = None
+if CACHE_ENABLED:
+    cache = redis.Redis(
+        host=os.environ.get("REDIS_HOST", "cache"),
+        port=6379,
+        password=os.environ.get("REDIS_PASSWORD") or None,
+        decode_responses=True,
+        socket_connect_timeout=1,
+        socket_timeout=1,
+    )
 
 @contextmanager
 def db():
@@ -63,11 +79,46 @@ def top5_from_db():
 
 
 def get_top5():
-    """Devuelve (filas, origen, milisegundos)."""
+    """Devuelve (filas, origen, milisegundos). Origen: 'cache' o 'db'."""
     start = time.perf_counter()
-    rows = top5_from_db()
+    rows, source = None, "db"
+
+    if cache is not None:
+        try:
+            raw = cache.get(TOP_KEY)
+            if raw is not None:
+                rows, source = json.loads(raw), "cache"
+        except redis.RedisError:
+            pass
+
+    if rows is None:
+        rows = top5_from_db()
+        if cache is not None:
+            try:
+                cache.setex(TOP_KEY, CACHE_TTL, json.dumps(rows))
+            except redis.RedisError:
+                pass
+
     elapsed = round((time.perf_counter() - start) * 1000, 1)
-    return rows, "db", elapsed
+    return rows, source, elapsed
+
+
+def invalidate_cache():
+    if cache is not None:
+        try:
+            cache.delete(TOP_KEY)
+        except redis.RedisError:
+            pass
+
+
+def cache_state():
+    if cache is None:
+        return "disabled"
+    try:
+        cache.ping()
+        return "up"
+    except redis.RedisError:
+        return "down"
 
 @app.get("/")
 def index():
@@ -179,6 +230,8 @@ def add_game():
     except psycopg2.Error:
         flash("La base de datos no está disponible.")
         return redirect(url_for("index"))
+    if added:
+        invalidate_cache()
     flash("Videojuego añadido." if added else "Ese videojuego ya estaba en la lista.")
     return redirect(url_for("index"))
 
@@ -200,6 +253,8 @@ def vote(game_id):
     except psycopg2.Error:
         flash("La base de datos no está disponible.")
         return redirect(url_for("index"))
+    if counted:
+        invalidate_cache()
     flash("Voto registrado." if counted else "Ya habías votado ese videojuego.")
     return redirect(url_for("index"))
 
@@ -207,5 +262,13 @@ def vote(game_id):
 @app.get("/status")
 def status():
     db_ok = check_db()
-    body = {"database": "up" if db_ok else "down"}
-    return jsonify(body), (200 if db_ok else 503)
+    cache_s = cache_state()
+
+    if not db_ok:
+        overall, code = "down", 503
+    elif cache_s == "down":
+        overall, code = "degraded", 200
+    else:
+        overall, code = "ok", 200
+
+    return jsonify(status=overall, database="up" if db_ok else "down", cache=cache_s), code

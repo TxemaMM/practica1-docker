@@ -17,8 +17,10 @@
 {% endif %}
 
 <h2>Top 5</h2>
-{% if source %}
-  <p><small>Servido desde la base de datos en {{ elapsed }} ms (caché desactivada en este entorno)</small></p>
+{% if source == 'cache' %}
+  <p><small>⚡ Servido desde caché en {{ elapsed }} ms</small></p>
+{% elif source == 'db' %}
+  <p><small>Servido desde la base de datos en {{ elapsed }} ms{% if not cache_enabled %} (caché desactivada en este entorno){% endif %}</small></p>
 {% endif %}
 <ol>
   {% for g in top %}
