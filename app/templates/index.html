@@ -16,6 +16,16 @@
   <p><a href="{{ url_for('login') }}">Inicia sesión</a> para votar y añadir videojuegos.</p>
 {% endif %}
 
+<h2>Top 5</h2>
+{% if source %}
+  <p><small>Servido desde la base de datos en {{ elapsed }} ms (caché desactivada en este entorno)</small></p>
+{% endif %}
+<ol>
+  {% for g in top %}
+    <li>{{ g.name }} — {{ g.votes }} voto{{ '' if g.votes == 1 else 's' }}</li>
+  {% endfor %}
+</ol>
+
 <h2>Videojuegos</h2>
 <ol>
   {% for id, name, votes in games %}

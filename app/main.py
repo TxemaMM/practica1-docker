@@ -2,6 +2,7 @@ import os
 from contextlib import contextmanager
 from functools import wraps
 
+import time
 import psycopg2
 import psycopg2.errors
 from flask import (Flask, flash, jsonify, redirect, render_template, request,
@@ -48,10 +49,32 @@ def login_required(view):
         return view(*args, **kwargs)
     return wrapped
 
+def top5_from_db():
+    with db() as cur:
+        cur.execute("""
+            SELECT g.name, COUNT(v.id) AS votes
+            FROM games g
+            LEFT JOIN votes v ON v.game_id = g.id
+            GROUP BY g.id, g.name
+            ORDER BY votes DESC, g.name
+            LIMIT 5
+        """)
+        return [{"name": r[0], "votes": r[1]} for r in cur.fetchall()]
+
+
+def get_top5():
+    """Devuelve (filas, origen, milisegundos)."""
+    start = time.perf_counter()
+    rows = top5_from_db()
+    elapsed = round((time.perf_counter() - start) * 1000, 1)
+    return rows, "db", elapsed
+
 @app.get("/")
 def index():
     games, voted, db_error = [], set(), False
+    top, source, elapsed = [], None, None       
     try:
+        top, source, elapsed = get_top5()     
         with db() as cur:
             cur.execute("""
                 SELECT g.id, g.name, COUNT(v.id) AS votes
@@ -69,7 +92,8 @@ def index():
                 voted = {r[0] for r in cur.fetchall()}
     except psycopg2.Error:
         db_error = True
-    return render_template("index.html", games=games, voted=voted, db_error=db_error)
+    return render_template("index.html", games=games, voted=voted, db_error=db_error,
+                           top=top, source=source, elapsed=elapsed)
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -179,7 +203,7 @@ def vote(game_id):
     flash("Voto registrado." if counted else "Ya habías votado ese videojuego.")
     return redirect(url_for("index"))
 
-    
+
 @app.get("/status")
 def status():
     db_ok = check_db()
