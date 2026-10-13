@@ -6,9 +6,17 @@
   <title>Ranking de videojuegos</title>
 </head>
 <body>
-  <nav>
+    <nav>
     <a href="{{ url_for('index') }}">Inicio</a>
-    <a href="{{ url_for('register') }}">Registrarse</a>
+    {% if session.get('user_id') %}
+      <span>Hola, {{ session['username'] }}</span>
+      <form method="post" action="{{ url_for('logout') }}" style="display:inline">
+        <button type="submit">Salir</button>
+      </form>
+    {% else %}
+      <a href="{{ url_for('login') }}">Entrar</a>
+      <a href="{{ url_for('register') }}">Registrarse</a>
+    {% endif %}
   </nav>
 
   {% with messages = get_flashed_messages() %}

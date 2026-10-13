@@ -3,8 +3,9 @@ from contextlib import contextmanager
 
 import psycopg2
 import psycopg2.errors
-from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
-from werkzeug.security import generate_password_hash
+from flask import (Flask, flash, jsonify, redirect, render_template, request,
+                   session, url_for)
+from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 app.secret_key = os.environ["SECRET_KEY"]
@@ -66,10 +67,47 @@ def register():
             flash("La base de datos no está disponible.")
             return render_template("register.html")
 
-        flash("Cuenta creada correctamente.")
-        return redirect(url_for("index"))
+        flash("Cuenta creada. Ya puedes iniciar sesión.")
+        return redirect(url_for("login"))
 
     return render_template("register.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+
+        try:
+            with db() as cur:
+                cur.execute(
+                    "SELECT id, password_hash FROM users WHERE username = %s",
+                    (username,),
+                )
+                row = cur.fetchone()
+        except psycopg2.Error:
+            flash("La base de datos no está disponible.")
+            return render_template("login.html")
+
+        if row is None or not check_password_hash(row[1], password):
+            flash("Usuario o contraseña incorrectos.")
+            return render_template("login.html")
+
+        session.clear()
+        session["user_id"] = row[0]
+        session["username"] = username
+        flash(f"Bienvenido, {username}.")
+        return redirect(url_for("index"))
+
+    return render_template("login.html")
+
+
+@app.post("/logout")
+def logout():
+    session.clear()
+    flash("Sesión cerrada.")
+    return redirect(url_for("index"))
 
 
 @app.get("/status")
