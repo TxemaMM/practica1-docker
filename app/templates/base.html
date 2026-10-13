@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ranking de videojuegos</title>
+</head>
+<body>
+  <nav>
+    <a href="{{ url_for('index') }}">Inicio</a>
+    <a href="{{ url_for('register') }}">Registrarse</a>
+  </nav>
+
+  {% with messages = get_flashed_messages() %}
+    {% for m in messages %}
+      <p>{{ m }}</p>
+    {% endfor %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</body>
+</html>
