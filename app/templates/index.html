@@ -1,5 +1,36 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Ranking de videojuegos</h1>
-<p>Próximamente...</p>
+
+{% if db_error %}
+  <p>No se puede leer la base de datos.</p>
+{% endif %}
+
+{% if session.get('user_id') %}
+  <h2>Añadir videojuego</h2>
+  <form method="post" action="{{ url_for('add_game') }}">
+    <input type="text" name="name" maxlength="60" placeholder="Nombre del videojuego" required>
+    <button type="submit">Añadir</button>
+  </form>
+{% else %}
+  <p><a href="{{ url_for('login') }}">Inicia sesión</a> para votar y añadir videojuegos.</p>
+{% endif %}
+
+<h2>Videojuegos</h2>
+<ol>
+  {% for id, name, votes in games %}
+    <li>
+      {{ name }} — {{ votes }} voto{{ '' if votes == 1 else 's' }}
+      {% if session.get('user_id') %}
+        {% if id in voted %}
+          (ya votado)
+        {% else %}
+          <form method="post" action="{{ url_for('vote', game_id=id) }}" style="display:inline">
+            <button type="submit">Votar</button>
+          </form>
+        {% endif %}
+      {% endif %}
+    </li>
+  {% endfor %}
+</ol>
 {% endblock %}

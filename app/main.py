@@ -1,5 +1,6 @@
 import os
 from contextlib import contextmanager
+from functools import wraps
 
 import psycopg2
 import psycopg2.errors
@@ -38,10 +39,37 @@ def check_db():
     except psycopg2.Error:
         return False
 
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Inicia sesión para hacer eso.")
+            return redirect(url_for("login"))
+        return view(*args, **kwargs)
+    return wrapped
 
 @app.get("/")
 def index():
-    return render_template("index.html")
+    games, voted, db_error = [], set(), False
+    try:
+        with db() as cur:
+            cur.execute("""
+                SELECT g.id, g.name, COUNT(v.id) AS votes
+                FROM games g
+                LEFT JOIN votes v ON v.game_id = g.id
+                GROUP BY g.id, g.name
+                ORDER BY votes DESC, g.name
+            """)
+            games = cur.fetchall()
+            if "user_id" in session:
+                cur.execute(
+                    "SELECT game_id FROM votes WHERE user_id = %s",
+                    (session["user_id"],),
+                )
+                voted = {r[0] for r in cur.fetchall()}
+    except psycopg2.Error:
+        db_error = True
+    return render_template("index.html", games=games, voted=voted, db_error=db_error)
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -110,6 +138,48 @@ def logout():
     return redirect(url_for("index"))
 
 
+@app.post("/games")
+@login_required
+def add_game():
+    name = request.form.get("name", "").strip()
+    if not 1 <= len(name) <= 60:
+        flash("El nombre debe tener entre 1 y 60 caracteres.")
+        return redirect(url_for("index"))
+    try:
+        with db() as cur:
+            cur.execute(
+                "INSERT INTO games (name) VALUES (%s) ON CONFLICT (name) DO NOTHING",
+                (name,),
+            )
+            added = cur.rowcount == 1
+    except psycopg2.Error:
+        flash("La base de datos no está disponible.")
+        return redirect(url_for("index"))
+    flash("Videojuego añadido." if added else "Ese videojuego ya estaba en la lista.")
+    return redirect(url_for("index"))
+
+
+@app.post("/games/<int:game_id>/vote")
+@login_required
+def vote(game_id):
+    try:
+        with db() as cur:
+            cur.execute(
+                "INSERT INTO votes (user_id, game_id) VALUES (%s, %s) "
+                "ON CONFLICT (user_id, game_id) DO NOTHING",
+                (session["user_id"], game_id),
+            )
+            counted = cur.rowcount == 1
+    except psycopg2.errors.ForeignKeyViolation:
+        flash("Ese videojuego no existe.")
+        return redirect(url_for("index"))
+    except psycopg2.Error:
+        flash("La base de datos no está disponible.")
+        return redirect(url_for("index"))
+    flash("Voto registrado." if counted else "Ya habías votado ese videojuego.")
+    return redirect(url_for("index"))
+
+    
 @app.get("/status")
 def status():
     db_ok = check_db()
