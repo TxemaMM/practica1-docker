@@ -1,7 +1,7 @@
 DEV  = docker compose --env-file .env.dev  -f docker-compose.dev.yml
 PROD = docker compose --env-file .env.prod -f docker-compose.prod.yml
 
-.PHONY: help up down up-dev up-prod down-dev down-prod ps status logs-dev logs-prod stop-db-dev start-db-dev stop-db-prod start-db-prod stop-cache start-cache stop-app-dev start-app-dev stop-app-prod start-app-prod stop-deps-prod start-deps-prod fresh-dev fresh-prod clean-dev clean-prod
+.PHONY: help up down up-dev up-prod down-dev down-prod ps status logs-dev logs-prod stop-db-dev start-db-dev stop-db-prod start-db-prod stop-cache start-cache stop-app-dev start-app-dev stop-app-prod start-app-prod stop-deps-prod start-deps-prod fresh-dev fresh-prod clean-dev clean-prod seed-dev seed-prod
 
 help:
 	@echo "ENTORNOS"
@@ -23,6 +23,10 @@ help:
 	@echo "DESDE CERO / LIMPIEZA (piden confirmacion)"
 	@echo "  make fresh-dev / fresh-prod   Recrea el entorno sin datos ni cache"
 	@echo "  make clean-dev / clean-prod   Borra solo los datos"
+	@echo ""
+	@echo "AÑADIR 10 USUARIOS SIMULTANEAMENTE PARA PRUEBAS"
+	@echo "  make seed-prod  Crea 10 cuentas del hola1-10 con la misma contraseña para todos (tu la pones)"
+	@echo "  make seed-dev Crea 10 cuentas del hola1-10 con la misma contraseña para todos (tu la pones)"
 
 up: up-dev up-prod
 
@@ -115,3 +119,11 @@ clean-dev:
 clean-prod:
 	@read -p "Esto BORRA los datos de PROD. Seguro? (s/N) " ans; [ "$$ans" = "s" ]
 	$(PROD) down -v
+
+seed-dev:
+	@test -n "$(PASS)" || (echo "Uso: make seed-dev PASS=contraseña"; exit 1)
+	@SEED_PASSWORD="$(PASS)" ./scripts/seed_users.sh 8080
+
+seed-prod:
+	@test -n "$(PASS)" || (echo "Uso: make seed-prod PASS=contraseña"; exit 1)
+	@SEED_PASSWORD="$(PASS)" ./scripts/seed_users.sh 8081
