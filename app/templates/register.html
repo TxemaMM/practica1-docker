@@ -1,9 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Crear cuenta</h1>
-<form method="post">
-  <input type="text" name="username" placeholder="Usuario" required>
-  <input type="password" name="password" placeholder="Contraseña" required>
-  <button type="submit">Registrarme</button>
-</form>
+<section class="card auth">
+  <h1>Crear cuenta</h1>
+  <form method="post">
+    <input type="text" name="username" placeholder="Usuario" required>
+    <input type="password" name="password" placeholder="Contraseña (mínimo 6)" required>
+    <button type="submit" class="btn">Registrarme</button>
+  </form>
+</section>
 {% endblock %}

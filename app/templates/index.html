@@ -3,46 +3,61 @@
 <h1>Ranking de videojuegos</h1>
 
 {% if db_error %}
-  <p>No se puede leer la base de datos.</p>
+  <div class="flash flash-error">No se puede leer la base de datos.</div>
 {% endif %}
+
+<section class="card">
+  <h2>🏆 Top 5</h2>
+  {% if source == 'cache' %}
+    <p class="source source-cache">⚡ Servido desde caché en {{ elapsed }} ms</p>
+  {% elif source == 'db' %}
+    <p class="source">🗄️ Servido desde la base de datos en {{ elapsed }} ms{% if not cache_enabled %} (caché desactivada en este entorno){% endif %}</p>
+  {% endif %}
+  <ol class="top">
+    {% for g in top %}
+      <li>
+        <span class="name">{{ g.name }}</span>
+        <span class="votes">{{ g.votes }} voto{{ '' if g.votes == 1 else 's' }}</span>
+      </li>
+    {% else %}
+      <li class="empty">Todavía no hay datos.</li>
+    {% endfor %}
+  </ol>
+</section>
 
 {% if session.get('user_id') %}
-  <h2>Añadir videojuego</h2>
-  <form method="post" action="{{ url_for('add_game') }}">
+<section class="card">
+  <h2>➕ Añadir videojuego</h2>
+  <form class="add" method="post" action="{{ url_for('add_game') }}">
     <input type="text" name="name" maxlength="60" placeholder="Nombre del videojuego" required>
-    <button type="submit">Añadir</button>
+    <button type="submit" class="btn">Añadir</button>
   </form>
+</section>
 {% else %}
-  <p><a href="{{ url_for('login') }}">Inicia sesión</a> para votar y añadir videojuegos.</p>
+<section class="card notice">
+  <a href="{{ url_for('login') }}">Inicia sesión</a> o
+  <a href="{{ url_for('register') }}">crea una cuenta</a> para votar y añadir videojuegos.
+</section>
 {% endif %}
 
-<h2>Top 5</h2>
-{% if source == 'cache' %}
-  <p><small>⚡ Servido desde caché en {{ elapsed }} ms</small></p>
-{% elif source == 'db' %}
-  <p><small>Servido desde la base de datos en {{ elapsed }} ms{% if not cache_enabled %} (caché desactivada en este entorno){% endif %}</small></p>
-{% endif %}
-<ol>
-  {% for g in top %}
-    <li>{{ g.name }} — {{ g.votes }} voto{{ '' if g.votes == 1 else 's' }}</li>
-  {% endfor %}
-</ol>
-
-<h2>Videojuegos</h2>
-<ol>
-  {% for id, name, votes in games %}
-    <li>
-      {{ name }} — {{ votes }} voto{{ '' if votes == 1 else 's' }}
-      {% if session.get('user_id') %}
-        {% if id in voted %}
-          (ya votado)
-        {% else %}
-          <form method="post" action="{{ url_for('vote', game_id=id) }}" style="display:inline">
-            <button type="submit">Votar</button>
-          </form>
+<section class="card">
+  <h2>🗳️ Todos los videojuegos</h2>
+  <ul class="games">
+    {% for id, name, votes in games %}
+      <li>
+        <span class="name">{{ name }}</span>
+        <span class="votes">{{ votes }} voto{{ '' if votes == 1 else 's' }}</span>
+        {% if session.get('user_id') %}
+          {% if id in voted %}
+            <span class="voted">✓ votado</span>
+          {% else %}
+            <form method="post" action="{{ url_for('vote', game_id=id) }}">
+              <button type="submit" class="btn btn-small">Votar</button>
+            </form>
+          {% endif %}
         {% endif %}
-      {% endif %}
-    </li>
-  {% endfor %}
-</ol>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
 {% endblock %}

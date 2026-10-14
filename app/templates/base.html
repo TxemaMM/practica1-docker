@@ -4,12 +4,45 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ranking de videojuegos</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<script>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}">🎮 Game Ranking</a>
+    <nav>
+      {% if session.get('user_id') %}
+        <span class="user">Hola, {{ session['username'] }}</span>
+        <form method="post" action="{{ url_for('logout') }}">
+          <button type="submit" class="btn btn-ghost">Salir</button>
+        </form>
+      {% else %}
+        <a class="btn btn-ghost" href="{{ url_for('login') }}">Entrar</a>
+        <a class="btn" href="{{ url_for('register') }}">Registrarse</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="container">
+    <div id="status-panel">
+      <span class="badge" id="badge-db" data-state="checking">Base de datos: …</span>
+      <span class="badge" id="badge-cache" data-state="checking">Caché: …</span>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+      {% for m in messages %}
+        <div class="flash">{{ m }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <script>
     const LABELS = {
       up: "✅ operativa",
       down: "❌ caída",
       disabled: "⚪ desactivada",
+      checking: "… comprobando",
       unreachable: "⚠️ sin respuesta de la web"
     };
 
@@ -33,32 +66,6 @@
 
     refreshStatus();
     setInterval(refreshStatus, 3000);
-</script>
-<body>
-    <nav>
-    <a href="{{ url_for('index') }}">Inicio</a>
-    {% if session.get('user_id') %}
-      <span>Hola, {{ session['username'] }}</span>
-      <form method="post" action="{{ url_for('logout') }}" style="display:inline">
-        <button type="submit">Salir</button>
-      </form>
-    {% else %}
-      <a href="{{ url_for('login') }}">Entrar</a>
-      <a href="{{ url_for('register') }}">Registrarse</a>
-    {% endif %}
-  </nav>
-
-  <div id="status-panel">
-    <span id="badge-db">Base de datos: …</span>
-    <span id="badge-cache">Caché: …</span>
-  </div>
-
-  {% with messages = get_flashed_messages() %}
-    {% for m in messages %}
-      <p>{{ m }}</p>
-    {% endfor %}
-  {% endwith %}
-
-  {% block content %}{% endblock %}
+  </script>
 </body>
 </html>
