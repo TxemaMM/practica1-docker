@@ -5,6 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ranking de videojuegos</title>
 </head>
+<script>
+    const LABELS = {
+      up: "✅ operativa",
+      down: "❌ caída",
+      disabled: "⚪ desactivada",
+      unreachable: "⚠️ sin respuesta de la web"
+    };
+
+    function paint(id, name, state) {
+      const el = document.getElementById(id);
+      el.dataset.state = state;
+      el.textContent = name + ": " + (LABELS[state] || state);
+    }
+
+    async function refreshStatus() {
+      try {
+        const res = await fetch("/status", { cache: "no-store" });
+        const data = await res.json();
+        paint("badge-db", "Base de datos", data.database);
+        paint("badge-cache", "Caché", data.cache);
+      } catch (e) {
+        paint("badge-db", "Base de datos", "unreachable");
+        paint("badge-cache", "Caché", "unreachable");
+      }
+    }
+
+    refreshStatus();
+    setInterval(refreshStatus, 3000);
+</script>
 <body>
     <nav>
     <a href="{{ url_for('index') }}">Inicio</a>
@@ -18,6 +47,11 @@
       <a href="{{ url_for('register') }}">Registrarse</a>
     {% endif %}
   </nav>
+
+  <div id="status-panel">
+    <span id="badge-db">Base de datos: …</span>
+    <span id="badge-cache">Caché: …</span>
+  </div>
 
   {% with messages = get_flashed_messages() %}
     {% for m in messages %}
